@@ -1,117 +1,182 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import {NativeModules} from 'react-native';
+const {BatteryOptimization} = NativeModules;
+import React, {useState, useEffect} from 'react';
 import {
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
+  PermissionsAndroid,
+  Button,
 } from 'react-native';
+import MapView, {Marker, Polyline} from 'react-native-maps';
+import GetLocation from 'react-native-get-location';
+import ArrowSvgComponent from './src/assets/svgs/ArrowSvgComponent';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
+interface Location {
+  latitude: number;
+  longitude: number;
 }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const routeCoordinates: Location[] = [
+  {latitude: 28.509417, longitude: 77.076618}, // Right turn
+  {latitude: 28.509417, longitude: 77.077263}, // Move straight
+  {latitude: 28.509417, longitude: 77.077908}, // Move straight
+  {latitude: 28.509733, longitude: 77.077908}, // Move straight
+  {latitude: 28.510049, longitude: 77.077908}, // Move straight
+  {latitude: 28.510365, longitude: 77.077908}, // Left turn
+  {latitude: 28.510365, longitude: 77.078553}, // Move straight
+  {latitude: 28.510365, longitude: 77.079198}, // Move straight
+  {latitude: 28.510681, longitude: 77.079198}, // Move straight
+  {latitude: 28.510997, longitude: 77.079198}, // End point
+];
+const App = (): JSX.Element => {
+  const [routeCoordinate, setRouteCoordinate] = useState<Location[]>([]);
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [batteryOptimizationStatus, setBatteryOptimizationStatus] = useState<
+    boolean | null
+  >(null);
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  useEffect(() => {
+    BatteryOptimization.getBatteryOptimizationStatus((status: boolean) => {
+      console.log('STATUS', status);
+      setBatteryOptimizationStatus(status);
+    });
+  }, []);
+
+  useEffect(() => {
+    const getUserLocation = async () => {
+      try {
+        const location = await GetLocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 60000,
+        });
+        console.log('User location', location);
+
+        setUserLocation(location);
+
+        setRouteCoordinate(prevCoordinates => [
+          ...prevCoordinates,
+          {
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+        ]);
+      } catch (error: any) {
+        console.warn(error.code, error.message);
+      }
+    };
+
+    getUserLocation();
+    const intervalId = setInterval(getUserLocation, 30000); // Every 10 minutes
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const initialRegion = {
+    latitude: routeCoordinate.length > 0 ? routeCoordinate[0].latitude : 0,
+    longitude: routeCoordinate.length > 0 ? routeCoordinate[0].longitude : 0,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  };
+  const calculateRotation = (coord1: Location, coord2: Location) => {
+    const dx = coord2.longitude - coord1.longitude;
+    const dy = coord2.latitude - coord1.latitude;
+
+    // Calculate the angle between the two coordinates
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    // Convert negative angles to positive
+    if (angle < 0) {
+      angle += 360;
+    }
+
+    // Adjust the angle to ensure it ranges between 0 and 360 degrees
+    angle = (angle + 360) % 360;
+
+    // Adjust the angle based on the difference in latitude and longitude
+    if (dx < 0 && dy < 0) {
+      angle = 180 + Math.abs(angle);
+    } else if (dx < 0 && dy > 0) {
+      angle = 180 - Math.abs(angle);
+    } else if (dx > 0 && dy < 0) {
+      angle = 360 - Math.abs(angle);
+    } else if (dx > 0 && dy > 0) {
+      angle = Math.abs(angle);
+    }
+
+    // Handle special case for left turns (adjust angle by 90 degrees)
+    if (dx < 0 && dy > 0) {
+      // Left turn towards positive y-axis
+      angle += 90;
+    } else if (dx > 0 && dy < 0) {
+      // Left turn towards negative y-axis
+      angle -= 90;
+    } else if (dy > 0) {
+      // Adjust for dy > 0
+      angle += 180;
+    }
+
+    return angle;
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
+    <SafeAreaView style={{flex: 1}}>
+      <View style={styles.container}>
+        <MapView
+          style={{height: '90%', width: '100%'}}
+          region={initialRegion}
+          initialRegion={initialRegion}>
+          <Polyline
+            coordinates={routeCoordinate.length > 0 ? routeCoordinate : []}
+            strokeColor="red"
+            strokeWidth={6}
+          />
+
+          {routeCoordinate.length > 0 &&
+            routeCoordinate.map((coordinate, index) => {
+              if (index === routeCoordinate.length - 1) return null;
+              const nextCoordinate = routeCoordinate[index + 1];
+              const rotation = calculateRotation(coordinate, nextCoordinate);
+              return (
+                <Marker
+                  key={index}
+                  coordinate={coordinate}
+                  anchor={{x: 0.5, y: 0.5}}
+                  title={`Marker ${index + 1}`}
+                  rotation={rotation}>
+                  <ArrowSvgComponent width={40} height={40} />
+                </Marker>
+              );
+            })}
+        </MapView>
+        <View style={styles.batteryOptimizationCard}>
+          <Text style={styles.batteryOptimizationText}>
+            Battery Optimization Status :
+            {batteryOptimizationStatus ? ' On' : ' Off'}
+          </Text>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {alignItems: 'center', height: '100%'},
+
+  batteryOptimizationCard: {
+    height: '10%',
+    width: '100%',
+    backgroundColor: 'lightblue',
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  batteryOptimizationText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 });
 
