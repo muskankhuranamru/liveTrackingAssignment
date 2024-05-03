@@ -126,7 +126,9 @@ const App = (): JSX.Element => {
       <View style={styles.container}>
         <MapView
           style={{height: '90%', width: '100%'}}
+          showsUserLocation={true}
           region={initialRegion}
+          zoomTapEnabled={true}
           initialRegion={initialRegion}>
           <Polyline
             coordinates={routeCoordinate.length > 0 ? routeCoordinate : []}
@@ -168,8 +170,8 @@ const styles = StyleSheet.create({
   batteryOptimizationCard: {
     height: '10%',
     width: '100%',
-    backgroundColor: 'lightblue',
-    borderRadius: 10,
+    backgroundColor: '#3893fc',
+
     justifyContent: 'center',
     alignItems: 'center',
   },
