@@ -18,19 +18,6 @@ interface Location {
   latitude: number;
   longitude: number;
 }
-
-const routeCoordinates: Location[] = [
-  {latitude: 28.509417, longitude: 77.076618}, // Right turn
-  {latitude: 28.509417, longitude: 77.077263}, // Move straight
-  {latitude: 28.509417, longitude: 77.077908}, // Move straight
-  {latitude: 28.509733, longitude: 77.077908}, // Move straight
-  {latitude: 28.510049, longitude: 77.077908}, // Move straight
-  {latitude: 28.510365, longitude: 77.077908}, // Left turn
-  {latitude: 28.510365, longitude: 77.078553}, // Move straight
-  {latitude: 28.510365, longitude: 77.079198}, // Move straight
-  {latitude: 28.510681, longitude: 77.079198}, // Move straight
-  {latitude: 28.510997, longitude: 77.079198}, // End point
-];
 const App = (): JSX.Element => {
   const [routeCoordinate, setRouteCoordinate] = useState<Location[]>([]);
   const [userLocation, setUserLocation] = useState<Location | null>(null);
@@ -69,7 +56,7 @@ const App = (): JSX.Element => {
     };
 
     getUserLocation();
-    const intervalId = setInterval(getUserLocation, 30000); // Every 10 minutes
+    const intervalId = setInterval(getUserLocation, 600000);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -128,7 +115,6 @@ const App = (): JSX.Element => {
           style={{height: '90%', width: '100%'}}
           showsUserLocation={true}
           region={initialRegion}
-          zoomTapEnabled={true}
           initialRegion={initialRegion}>
           <Polyline
             coordinates={routeCoordinate.length > 0 ? routeCoordinate : []}
